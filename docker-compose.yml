@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   # ─── Tor Proxy Pool ──────────────────────────────────────────────────────────
   # Multiple Tor instances for parallel .onion crawling
@@ -79,15 +77,16 @@ services:
       - TOR_PROXY_HOST=tor-lb
       - TOR_PROXY_PORT=9050
       - REDIS_URL=redis://redis:6379/0
-      - SPIDERFOOT_URL=http://spiderfoot:5001
       - SEARXNG_URL=http://searxng:8080
+      - DATABASE_URL=sqlite:///./data/wolfwatch.db
     volumes:
-      - ./wolfwatch.db:/app/wolfwatch.db
+      - wolfwatch_data:/app/data
     depends_on:
       - tor-lb
       - redis
       - searxng
 
 volumes:
+  wolfwatch_data:
   redis_data:
   searxng_data:

@@ -1,0 +1,46 @@
+# Secrets
+.env
+*.key
+
+# Git
+.git
+.gitignore
+
+# Python caches
+__pycache__
+*.py[cod]
+*.egg-info
+.eggs
+
+# Virtual environments
+.venv
+venv
+ENV
+
+# Database (created at runtime)
+*.db
+*.db-wal
+*.db-shm
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude Code
+.claude
+CLAUDE.md
+
+# Docker volume data
+ollama_data
+redis_data
+spiderfoot_data
+searxng_data
+
+# Docs
+README.md
