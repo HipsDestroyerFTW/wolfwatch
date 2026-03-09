@@ -44,16 +44,15 @@ services:
       - redis_data:/data
     command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
 
-  # ─── SpiderFoot OSINT ───────────────────────────────────────────────────────
-  # Full OSINT automation — web UI on :5001, REST API for integration
-  spiderfoot:
-    image: ghcr.io/smicallef/spiderfoot:latest
-    restart: unless-stopped
-    ports:
-      - "5001:5001"
-    command: -l 0.0.0.0:5001
-    volumes:
-      - spiderfoot_data:/home/spiderfoot/.spiderfoot
+  # ─── SpiderFoot OSINT (disabled — image no longer publicly available) ──────
+  # spiderfoot:
+  #   image: ghcr.io/smicallef/spiderfoot:latest
+  #   restart: unless-stopped
+  #   ports:
+  #     - "5001:5001"
+  #   command: -l 0.0.0.0:5001
+  #   volumes:
+  #     - spiderfoot_data:/home/spiderfoot/.spiderfoot
 
   # ─── SearXNG Meta Search ────────────────────────────────────────────────────
   # Privacy-respecting search engine — aggregates results from 70+ engines
@@ -87,10 +86,8 @@ services:
     depends_on:
       - tor-lb
       - redis
-      - spiderfoot
       - searxng
 
 volumes:
   redis_data:
-  spiderfoot_data:
   searxng_data:
