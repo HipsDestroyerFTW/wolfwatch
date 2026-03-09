@@ -12,18 +12,21 @@ if [ ! -f .env ]; then
 fi
 
 # Use venv if available, otherwise install with --user
-if [ ! -d .venv ] && python3 -m venv --help &>/dev/null; then
+if [ -f .venv/bin/activate ]; then
+  source .venv/bin/activate
+  echo "[*] Installing/updating dependencies (venv)..."
+  pip install -q -r requirements.txt
+elif python3 -m venv --help &>/dev/null; then
   echo "[*] Creating virtual environment..."
   python3 -m venv .venv
-fi
-
-if [ -d .venv ]; then
   source .venv/bin/activate
   echo "[*] Installing/updating dependencies (venv)..."
   pip install -q -r requirements.txt
 else
-  echo "[*] Installing/updating dependencies (user)..."
-  pip install -q --user -r requirements.txt
+  echo "[*] Installing/updating dependencies (system)..."
+  pip install -q --break-system-packages -r requirements.txt 2>/dev/null \
+    || pip install -q --user -r requirements.txt \
+    || pip install -q -r requirements.txt
 fi
 
 # Kill any existing instance on port 8000
