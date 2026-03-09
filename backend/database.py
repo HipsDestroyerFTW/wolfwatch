@@ -4,20 +4,23 @@ from sqlalchemy.orm import sessionmaker, DeclarativeBase
 from sqlalchemy.pool import StaticPool
 from .config import settings
 
-# Ensure the directory for the SQLite DB file exists
-if settings.DATABASE_URL.startswith("sqlite:///"):
-    db_path = settings.DATABASE_URL.replace("sqlite:///", "", 1)
-    db_dir = os.path.dirname(os.path.abspath(db_path))
-    os.makedirs(db_dir, exist_ok=True)
+# Resolve relative SQLite paths against the project root (where this package lives)
+_db_url = settings.DATABASE_URL
+if _db_url.startswith("sqlite:///./") or _db_url.startswith("sqlite:///wolfwatch"):
+    _project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    _rel_path = _db_url.replace("sqlite:///", "", 1)
+    _abs_path = os.path.join(_project_root, _rel_path)
+    os.makedirs(os.path.dirname(_abs_path), exist_ok=True)
+    _db_url = f"sqlite:///{_abs_path}"
 
 engine = create_engine(
-    settings.DATABASE_URL,
-    connect_args={"check_same_thread": False} if "sqlite" in settings.DATABASE_URL else {},
-    poolclass=StaticPool if "sqlite" in settings.DATABASE_URL else None,
+    _db_url,
+    connect_args={"check_same_thread": False} if "sqlite" in _db_url else {},
+    poolclass=StaticPool if "sqlite" in _db_url else None,
 )
 
 # Enable WAL mode for SQLite for better concurrent read performance
-if "sqlite" in settings.DATABASE_URL:
+if "sqlite" in _db_url:
     @event.listens_for(engine, "connect")
     def set_sqlite_pragma(dbapi_conn, _):
         cursor = dbapi_conn.cursor()
