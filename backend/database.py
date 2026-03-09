@@ -4,13 +4,14 @@ from sqlalchemy.orm import sessionmaker, DeclarativeBase
 from sqlalchemy.pool import StaticPool
 from .config import settings
 
-# Resolve relative SQLite paths against the project root (where this package lives)
+# Resolve SQLite paths to absolute, anchored to the project root.
+# sqlite:///  = relative path, sqlite://// = already absolute
 _db_url = settings.DATABASE_URL
-if _db_url.startswith("sqlite:///./") or _db_url.startswith("sqlite:///wolfwatch"):
-    _project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    _rel_path = _db_url.replace("sqlite:///", "", 1)
+_project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _db_url.startswith("sqlite:///") and not _db_url.startswith("sqlite:////"):
+    _rel_path = _db_url[len("sqlite:///"):]
     _abs_path = os.path.join(_project_root, _rel_path)
-    os.makedirs(os.path.dirname(_abs_path), exist_ok=True)
+    os.makedirs(os.path.dirname(_abs_path) or _project_root, exist_ok=True)
     _db_url = f"sqlite:///{_abs_path}"
 
 engine = create_engine(
