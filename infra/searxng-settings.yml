@@ -1,0 +1,63 @@
+use_default_settings: true
+
+general:
+  instance_name: "WolfWatch Search"
+  debug: false
+
+search:
+  safe_search: 0
+  autocomplete: ""
+  default_lang: "en"
+  formats:
+    - html
+    - json
+
+server:
+  secret_key: "wolfwatch-searxng-secret-change-me"
+  bind_address: "0.0.0.0"
+  port: 8080
+  limiter: false
+
+ui:
+  static_use_hash: true
+
+engines:
+  # General web search
+  - name: duckduckgo
+    engine: duckduckgo
+    shortcut: ddg
+    disabled: false
+
+  - name: google
+    engine: google
+    shortcut: g
+    disabled: false
+
+  - name: bing
+    engine: bing
+    shortcut: bi
+    disabled: false
+
+  # IT / Security focused
+  - name: github
+    engine: github
+    shortcut: gh
+    disabled: false
+
+  - name: stackoverflow
+    engine: stackoverflow
+    shortcut: so
+    disabled: false
+
+  # Dark web indexes (clearnet gateways)
+  - name: ahmia
+    engine: ahmia
+    shortcut: ah
+    disabled: false
+    categories: onions
+
+  - name: torch
+    engine: torch
+    shortcut: to
+    disabled: false
+    categories: onions

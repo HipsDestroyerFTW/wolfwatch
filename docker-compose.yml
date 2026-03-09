@@ -1,0 +1,96 @@
+version: "3.9"
+
+services:
+  # ─── Tor Proxy Pool ──────────────────────────────────────────────────────────
+  # Multiple Tor instances for parallel .onion crawling
+  tor-1:
+    image: dperson/torproxy:latest
+    restart: unless-stopped
+    environment:
+      - TZ=UTC
+
+  tor-2:
+    image: dperson/torproxy:latest
+    restart: unless-stopped
+    environment:
+      - TZ=UTC
+
+  tor-3:
+    image: dperson/torproxy:latest
+    restart: unless-stopped
+    environment:
+      - TZ=UTC
+
+  # HAProxy load-balances SOCKS5 across all Tor instances
+  tor-lb:
+    image: haproxy:2.9-alpine
+    restart: unless-stopped
+    ports:
+      - "9050:9050"
+    volumes:
+      - ./infra/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    depends_on:
+      - tor-1
+      - tor-2
+      - tor-3
+
+  # ─── Redis (caching + job queue) ────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+
+  # ─── SpiderFoot OSINT ───────────────────────────────────────────────────────
+  # Full OSINT automation — web UI on :5001, REST API for integration
+  spiderfoot:
+    image: ghcr.io/smicallef/spiderfoot:latest
+    restart: unless-stopped
+    ports:
+      - "5001:5001"
+    command: -l 0.0.0.0:5001
+    volumes:
+      - spiderfoot_data:/home/spiderfoot/.spiderfoot
+
+  # ─── SearXNG Meta Search ────────────────────────────────────────────────────
+  # Privacy-respecting search engine — aggregates results from 70+ engines
+  searxng:
+    image: searxng/searxng:latest
+    restart: unless-stopped
+    ports:
+      - "8888:8080"
+    volumes:
+      - ./infra/searxng-settings.yml:/etc/searxng/settings.yml:ro
+      - searxng_data:/etc/searxng
+    environment:
+      - SEARXNG_BASE_URL=http://localhost:8888/
+
+  # ─── Main App ───────────────────────────────────────────────────────────────
+  app:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - TOR_PROXY_HOST=tor-lb
+      - TOR_PROXY_PORT=9050
+      - REDIS_URL=redis://redis:6379/0
+      - SPIDERFOOT_URL=http://spiderfoot:5001
+      - SEARXNG_URL=http://searxng:8080
+    volumes:
+      - ./wolfwatch.db:/app/wolfwatch.db
+    depends_on:
+      - tor-lb
+      - redis
+      - spiderfoot
+      - searxng
+
+volumes:
+  redis_data:
+  spiderfoot_data:
+  searxng_data:

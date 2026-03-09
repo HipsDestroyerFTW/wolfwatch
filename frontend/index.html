@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Wolf Industries — DarkWeb Monitor</title>
+<style>
+  :root{
+    --bg:#0a0c10;--surface:#111318;--surface2:#181c24;--border:#1e2433;
+    --accent:#6c63ff;--accent2:#00d4ff;--red:#ff4444;--orange:#ff8c00;
+    --yellow:#ffc107;--green:#00c853;--muted:#4a5568;--text:#e2e8f0;--text2:#8892a4;
+    --font:'Inter',system-ui,sans-serif;
+    --critical:#ff2d55;--high:#ff6b35;--medium:#ffc107;--low:#4ecdc4;--info:#8892a4;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;min-height:100vh;}
+  a{color:var(--accent2);text-decoration:none;}
+
+  /* Layout */
+  .layout{display:flex;height:100vh;overflow:hidden;}
+  .sidebar{width:220px;min-width:220px;background:var(--surface);border-right:1px solid var(--border);
+    display:flex;flex-direction:column;padding:0;}
+  .main{flex:1;overflow-y:auto;display:flex;flex-direction:column;}
+
+  /* Sidebar */
+  .brand{padding:20px 18px 16px;border-bottom:1px solid var(--border);}
+  .brand-logo{display:flex;align-items:center;gap:10px;}
+  .brand-icon{width:32px;height:32px;background:linear-gradient(135deg,var(--accent),var(--accent2));
+    border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;}
+  .brand-name{font-size:13px;font-weight:700;letter-spacing:.5px;color:var(--text);}
+  .brand-sub{font-size:10px;color:var(--text2);letter-spacing:1px;text-transform:uppercase;}
+  .nav{flex:1;padding:12px 0;}
+  .nav-section{padding:6px 18px 4px;font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;font-weight:600;}
+  .nav-item{display:flex;align-items:center;gap:10px;padding:9px 18px;cursor:pointer;
+    color:var(--text2);transition:.15s;border-left:3px solid transparent;font-size:13px;}
+  .nav-item:hover{color:var(--text);background:var(--surface2);}
+  .nav-item.active{color:var(--accent2);background:rgba(0,212,255,.07);border-left-color:var(--accent2);}
+  .nav-item .icon{width:18px;text-align:center;font-size:15px;}
+  .status-bar{padding:12px 18px;border-top:1px solid var(--border);font-size:11px;color:var(--muted);}
+  .status-dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:6px;}
+  .status-dot.online{background:var(--green);box-shadow:0 0 6px var(--green);}
+  .status-dot.offline{background:var(--red);}
+
+  /* Topbar */
+  .topbar{background:var(--surface);border-bottom:1px solid var(--border);
+    padding:14px 28px;display:flex;align-items:center;justify-content:space-between;min-height:58px;}
+  .topbar-title{font-size:18px;font-weight:700;}
+  .topbar-sub{font-size:12px;color:var(--text2);margin-top:2px;}
+  .topbar-actions{display:flex;gap:10px;align-items:center;}
+
+  /* Content */
+  .content{padding:24px 28px;flex:1;}
+
+  /* Cards */
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;}
+  .card-title{font-size:12px;font-weight:600;color:var(--text2);letter-spacing:.8px;text-transform:uppercase;margin-bottom:14px;}
+
+  /* Stat cards */
+  .stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;margin-bottom:24px;}
+  .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;position:relative;overflow:hidden;}
+  .stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--accent);}
+  .stat-card.critical::before{background:var(--critical);}
+  .stat-card.high::before{background:var(--high);}
+  .stat-card.warn::before{background:var(--yellow);}
+  .stat-card.ok::before{background:var(--green);}
+  .stat-card.info::before{background:var(--accent2);}
+  .stat-label{font-size:11px;color:var(--text2);letter-spacing:.5px;margin-bottom:8px;}
+  .stat-value{font-size:28px;font-weight:800;line-height:1;}
+  .stat-sub{font-size:11px;color:var(--muted);margin-top:6px;}
+
+  /* Buttons */
+  .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;
+    font-size:13px;font-weight:600;cursor:pointer;border:none;transition:.15s;}
+  .btn-primary{background:var(--accent);color:#fff;}
+  .btn-primary:hover{background:#5a52e0;}
+  .btn-danger{background:rgba(255,68,68,.15);color:var(--red);border:1px solid rgba(255,68,68,.3);}
+  .btn-danger:hover{background:rgba(255,68,68,.25);}
+  .btn-ghost{background:transparent;color:var(--text2);border:1px solid var(--border);}
+  .btn-ghost:hover{color:var(--text);border-color:var(--muted);}
+  .btn-sm{padding:5px 12px;font-size:12px;}
+  .btn-success{background:rgba(0,200,83,.15);color:var(--green);border:1px solid rgba(0,200,83,.3);}
+  .btn-success:hover{background:rgba(0,200,83,.25);}
+  .btn-cyan{background:rgba(0,212,255,.12);color:var(--accent2);border:1px solid rgba(0,212,255,.25);}
+  .btn-cyan:hover{background:rgba(0,212,255,.22);}
+
+  /* Badge */
+  .badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;}
+  .badge-critical{background:rgba(255,45,85,.15);color:var(--critical);border:1px solid rgba(255,45,85,.3);}
+  .badge-high{background:rgba(255,107,53,.15);color:var(--high);border:1px solid rgba(255,107,53,.3);}
+  .badge-medium{background:rgba(255,193,7,.15);color:var(--yellow);border:1px solid rgba(255,193,7,.3);}
+  .badge-low{background:rgba(78,205,196,.15);color:var(--low);border:1px solid rgba(78,205,196,.3);}
+  .badge-informational{background:rgba(136,146,164,.15);color:var(--info);border:1px solid rgba(136,146,164,.3);}
+  .badge-active{background:rgba(0,200,83,.1);color:var(--green);border:1px solid rgba(0,200,83,.25);}
+  .badge-paused{background:rgba(74,85,104,.15);color:var(--muted);border:1px solid var(--border);}
+
+  /* Table */
+  .table-wrap{overflow-x:auto;}
+  table{width:100%;border-collapse:collapse;}
+  th{text-align:left;padding:10px 14px;font-size:11px;font-weight:600;color:var(--muted);
+    letter-spacing:.6px;text-transform:uppercase;border-bottom:1px solid var(--border);}
+  td{padding:12px 14px;border-bottom:1px solid rgba(30,36,51,.5);vertical-align:middle;}
+  tr:last-child td{border-bottom:none;}
+  tr:hover td{background:rgba(255,255,255,.02);}
+
+  /* Modal */
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);
+    z-index:100;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:.2s;}
+  .modal-overlay.open{opacity:1;pointer-events:all;}
+  .modal{background:var(--surface2);border:1px solid var(--border);border-radius:16px;
+    padding:28px;width:100%;max-width:540px;max-height:90vh;overflow-y:auto;
+    transform:translateY(16px);transition:.2s;}
+  .modal-overlay.open .modal{transform:translateY(0);}
+  .modal-title{font-size:17px;font-weight:700;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;}
+  .modal-close{cursor:pointer;color:var(--muted);font-size:20px;line-height:1;background:none;border:none;color:var(--text2);}
+  .modal-close:hover{color:var(--text);}
+
+  /* Form */
+  .form-group{margin-bottom:16px;}
+  label{display:block;font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px;}
+  input,select,textarea{width:100%;background:var(--surface);border:1px solid var(--border);
+    border-radius:8px;padding:10px 12px;color:var(--text);font-size:13px;font-family:var(--font);
+    outline:none;transition:.15s;}
+  input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(108,99,255,.15);}
+  select option{background:var(--surface2);}
+  textarea{resize:vertical;min-height:80px;}
+  .form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+
+  /* Risk bar */
+  .risk-bar{height:5px;background:var(--border);border-radius:3px;overflow:hidden;}
+  .risk-fill{height:100%;border-radius:3px;transition:.3s;}
+
+  /* Tabs */
+  .tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:20px;}
+  .tab{padding:10px 18px;cursor:pointer;font-size:13px;font-weight:500;color:var(--text2);
+    border-bottom:2px solid transparent;transition:.15s;margin-bottom:-1px;}
+  .tab:hover{color:var(--text);}
+  .tab.active{color:var(--accent2);border-bottom-color:var(--accent2);}
+
+  /* Loading */
+  .spinner{width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--accent2);
+    border-radius:50%;animation:spin .7s linear infinite;display:inline-block;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  /* Toast */
+  .toast-wrap{position:fixed;bottom:24px;right:24px;z-index:200;display:flex;flex-direction:column;gap:8px;}
+  .toast{background:var(--surface2);border:1px solid var(--border);border-radius:10px;
+    padding:12px 18px;font-size:13px;display:flex;align-items:center;gap:10px;
+    box-shadow:0 8px 32px rgba(0,0,0,.4);animation:slideIn .2s ease;}
+  .toast.success{border-color:rgba(0,200,83,.4);}
+  .toast.error{border-color:rgba(255,68,68,.4);}
+  .toast.warning{border-color:rgba(255,193,7,.4);}
+  @keyframes slideIn{from{transform:translateX(100%);opacity:0;}to{transform:none;opacity:1;}}
+
+  /* Report modal */
+  .report-content{background:var(--bg);border:1px solid var(--border);border-radius:8px;
+    padding:16px;font-size:13px;line-height:1.7;white-space:pre-wrap;max-height:400px;overflow-y:auto;font-family:monospace;}
+
+  /* Empty state */
+  .empty{text-align:center;padding:48px 24px;color:var(--muted);}
+  .empty-icon{font-size:40px;margin-bottom:12px;}
+
+  /* Scan pulse animation */
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+  .scanning{animation:pulse 1.2s ease-in-out infinite;color:var(--accent2);}
+
+  /* Risk score colors */
+  .risk-0{color:var(--info);}
+  .risk-low{color:var(--low);}
+  .risk-med{color:var(--yellow);}
+  .risk-high{color:var(--high);}
+  .risk-crit{color:var(--critical);}
+
+  .truncate{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px;}
+  .mono{font-family:monospace;font-size:12px;}
+  .flex{display:flex;} .items-center{align-items:center;} .gap-2{gap:8px;} .gap-3{gap:12px;}
+  .ml-auto{margin-left:auto;}
+  .text-muted{color:var(--text2);}
+  .mt-4{margin-top:16px;} .mb-4{margin-bottom:16px;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+  .full-width{grid-column:1/-1;}
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-logo">
+        <div class="brand-icon">🐺</div>
+        <div>
+          <div class="brand-name">Wolf Industries</div>
+          <div class="brand-sub">DarkWeb Monitor</div>
+        </div>
+      </div>
+    </div>
+    <nav class="nav">
+      <div class="nav-section">Overview</div>
+      <div class="nav-item active" onclick="navigate('dashboard')">
+        <span class="icon">📊</span> Dashboard
+      </div>
+      <div class="nav-section">Monitoring</div>
+      <div class="nav-item" onclick="navigate('targets')">
+        <span class="icon">🎯</span> Targets
+      </div>
+      <div class="nav-item" onclick="navigate('findings')">
+        <span class="icon">🔍</span> Findings
+      </div>
+      <div class="nav-item" onclick="navigate('scans')">
+        <span class="icon">⚡</span> Scan Jobs
+      </div>
+    </nav>
+    <div class="status-bar" id="status-bar">
+      <span class="status-dot offline" id="status-dot"></span>
+      <span id="status-text">Connecting…</span>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title" id="page-title">Dashboard</div>
+        <div class="topbar-sub" id="page-sub">Overview of dark web monitoring activity</div>
+      </div>
+      <div class="topbar-actions" id="topbar-actions"></div>
+    </div>
+    <div class="content" id="content">
+      <div class="empty"><div class="spinner"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Add Target Modal -->
+<div class="modal-overlay" id="modal-add-target">
+  <div class="modal">
+    <div class="modal-title">
+      Add Monitor Target
+      <button class="modal-close" onclick="closeModal('modal-add-target')">✕</button>
+    </div>
+    <form id="form-add-target" onsubmit="submitAddTarget(event)">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Target Name</label>
+          <input type="text" id="t-name" placeholder="e.g. Corporate Email" required/>
+        </div>
+        <div class="form-group">
+          <label>Type</label>
+          <select id="t-type" required>
+            <option value="domain">Domain</option>
+            <option value="email">Email Address</option>
+            <option value="keyword">Keyword</option>
+            <option value="brand">Brand / Company Name</option>
+            <option value="onion_url">Onion URL (.onion)</option>
+            <option value="ip_address">IP Address</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Value</label>
+        <input type="text" id="t-value" placeholder="e.g. wolfindustries.com or ceo@wolfindustries.com" required/>
+      </div>
+      <div class="form-group">
+        <label>Description (optional)</label>
+        <textarea id="t-desc" placeholder="What is this target and why are we monitoring it?"></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Scan Interval (hours)</label>
+          <input type="number" id="t-interval" value="6" min="1" max="168"/>
+        </div>
+        <div class="form-group">
+          <label>Tags (comma-separated)</label>
+          <input type="text" id="t-tags" placeholder="executive, critical"/>
+        </div>
+      </div>
+      <div class="flex gap-2" style="justify-content:flex-end;margin-top:8px;">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('modal-add-target')">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="btn-add-submit">
+          <span>Add Target</span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Finding Detail Modal -->
+<div class="modal-overlay" id="modal-finding">
+  <div class="modal" style="max-width:680px;">
+    <div class="modal-title">
+      Finding Detail
+      <button class="modal-close" onclick="closeModal('modal-finding')">✕</button>
+    </div>
+    <div id="modal-finding-body"></div>
+  </div>
+</div>
+
+<!-- Report Modal -->
+<div class="modal-overlay" id="modal-report">
+  <div class="modal" style="max-width:700px;">
+    <div class="modal-title">
+      AI Threat Report
+      <button class="modal-close" onclick="closeModal('modal-report')">✕</button>
+    </div>
+    <div id="modal-report-body"></div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div class="toast-wrap" id="toasts"></div>
+
+<script>
+const API = '/api';
+let currentPage = 'dashboard';
+let refreshInterval = null;
+
+// ─── Navigation ─────────────────────────────────────────────────────────────
+const PAGE_META = {
+  dashboard: { title: 'Dashboard', sub: 'Overview of dark web monitoring activity' },
+  targets:   { title: 'Monitor Targets', sub: 'Manage domains, emails, keywords and sites to watch' },
+  findings:  { title: 'Findings', sub: 'All detected threats and intelligence hits' },
+  scans:     { title: 'Scan Jobs', sub: 'Scan history and status' },
+};
+
+function navigate(page) {
+  currentPage = page;
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(el => {
+    if (el.getAttribute('onclick')?.includes(page)) el.classList.add('active');
+  });
+  const meta = PAGE_META[page] || {};
+  document.getElementById('page-title').textContent = meta.title || page;
+  document.getElementById('page-sub').textContent = meta.sub || '';
+  clearInterval(refreshInterval);
+  loadPage(page);
+}
+
+async function loadPage(page) {
+  const content = document.getElementById('content');
+  content.innerHTML = '<div class="empty"><div class="spinner"></div></div>';
+  const actions = document.getElementById('topbar-actions');
+  actions.innerHTML = '';
+
+  if (page === 'dashboard') {
+    actions.innerHTML = `<button class="btn btn-ghost btn-sm" onclick="loadPage('dashboard')">↺ Refresh</button>`;
+    await renderDashboard();
+    refreshInterval = setInterval(() => loadPage('dashboard'), 30000);
+  } else if (page === 'targets') {
+    actions.innerHTML = `<button class="btn btn-primary btn-sm" onclick="openModal('modal-add-target')">+ Add Target</button>`;
+    await renderTargets();
+  } else if (page === 'findings') {
+    await renderFindings();
+  } else if (page === 'scans') {
+    await renderScans();
+  }
+}
+
+// ─── API helpers ─────────────────────────────────────────────────────────────
+async function api(path, opts={}) {
+  const r = await fetch(API + path, {
+    headers: { 'Content-Type': 'application/json' },
+    ...opts,
+  });
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({ detail: r.statusText }));
+    throw new Error(err.detail || r.statusText);
+  }
+  if (r.status === 204) return null;
+  return r.json();
+}
+
+// ─── Toast ───────────────────────────────────────────────────────────────────
+function toast(msg, type='success') {
+  const icons = { success:'✅', error:'❌', warning:'⚠️', info:'ℹ️' };
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.innerHTML = `<span>${icons[type]||''}</span><span>${msg}</span>`;
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(() => el.remove(), 4000);
+}
+
+// ─── Modal ───────────────────────────────────────────────────────────────────
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// ─── Health check ─────────────────────────────────────────────────────────────
+async function checkHealth() {
+  try {
+    const h = await api('/health');
+    const dot = document.getElementById('status-dot');
+    const txt = document.getElementById('status-text');
+    dot.className = 'status-dot online';
+    txt.textContent = h.ai_enabled ? 'AI Active' : 'No AI Key';
+  } catch {
+    document.getElementById('status-dot').className = 'status-dot offline';
+    document.getElementById('status-text').textContent = 'Server offline';
+  }
+}
+
+// ─── Formatters ──────────────────────────────────────────────────────────────
+function threatBadge(level) {
+  return `<span class="badge badge-${level}">${level.toUpperCase()}</span>`;
+}
+function typeBadge(type) {
+  const icons = { domain:'🌐', email:'📧', keyword:'🔑', brand:'™️', onion_url:'🧅', ip_address:'🖥️' };
+  return `<span style="font-size:12px;">${icons[type]||'❓'} ${type.replace('_',' ')}</span>`;
+}
+function riskBar(score) {
+  const pct = Math.min(score * 10, 100);
+  const color = score >= 8 ? 'var(--critical)' : score >= 6 ? 'var(--high)' : score >= 4 ? 'var(--yellow)' : score >= 2 ? 'var(--low)' : 'var(--info)';
+  return `<div style="display:flex;align-items:center;gap:8px;">
+    <div class="risk-bar" style="width:80px;"><div class="risk-fill" style="width:${pct}%;background:${color};"></div></div>
+    <span style="font-size:12px;color:${color};font-weight:600;">${score.toFixed(1)}</span>
+  </div>`;
+}
+function timeAgo(iso) {
+  if (!iso) return '—';
+  const diff = Date.now() - new Date(iso);
+  const m = Math.floor(diff/60000), h = Math.floor(m/60), d = Math.floor(h/24);
+  if (d > 0) return `${d}d ago`;
+  if (h > 0) return `${h}h ago`;
+  if (m > 0) return `${m}m ago`;
+  return 'Just now';
+}
+
+// ─── Dashboard ───────────────────────────────────────────────────────────────
+async function renderDashboard() {
+  const stats = await api('/dashboard/stats');
+  const c = document.getElementById('content');
+
+  const critColor = stats.critical_findings > 0 ? 'critical' : '';
+  const highColor = stats.high_findings > 0 ? 'high' : '';
+  const unackColor = stats.unacknowledged_findings > 0 ? 'warn' : 'ok';
+
+  c.innerHTML = `
+    <div class="stats-grid">
+      <div class="stat-card info">
+        <div class="stat-label">Total Targets</div>
+        <div class="stat-value">${stats.total_targets}</div>
+        <div class="stat-sub">${stats.active_targets} active</div>
+      </div>
+      <div class="stat-card ${critColor}">
+        <div class="stat-label">Critical Findings</div>
+        <div class="stat-value" style="color:${stats.critical_findings>0?'var(--critical)':'inherit'}">${stats.critical_findings}</div>
+        <div class="stat-sub">Require immediate action</div>
+      </div>
+      <div class="stat-card ${highColor}">
+        <div class="stat-label">High Findings</div>
+        <div class="stat-value" style="color:${stats.high_findings>0?'var(--high)':'inherit'}">${stats.high_findings}</div>
+        <div class="stat-sub">High severity threats</div>
+      </div>
+      <div class="stat-card ${unackColor}">
+        <div class="stat-label">Unacknowledged</div>
+        <div class="stat-value" style="color:${stats.unacknowledged_findings>0?'var(--yellow)':'var(--green)'}">${stats.unacknowledged_findings}</div>
+        <div class="stat-sub">Pending review</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Scans (24h)</div>
+        <div class="stat-value">${stats.scans_last_24h}</div>
+        <div class="stat-sub">${stats.total_findings} total findings</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Avg Risk Score</div>
+        <div class="stat-value">${stats.avg_risk_score.toFixed(1)}<span style="font-size:16px;color:var(--muted)">/10</span></div>
+        <div class="stat-sub">Across all targets</div>
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <div class="card-title">🔥 Top Risk Targets</div>
+        ${stats.top_threats.length === 0
+          ? '<div class="empty" style="padding:20px;"><div class="empty-icon">✅</div>No high-risk targets detected</div>'
+          : `<div class="table-wrap"><table>
+            <thead><tr><th>Target</th><th>Type</th><th>Risk</th></tr></thead>
+            <tbody>${stats.top_threats.map(t => `
+              <tr>
+                <td><div class="truncate">${t.name}<br><span class="mono text-muted">${t.value}</span></div></td>
+                <td>${typeBadge(t.type)}</td>
+                <td>${riskBar(t.risk_score)}</td>
+              </tr>`).join('')}</tbody>
+          </table></div>`}
+      </div>
+      <div class="card">
+        <div class="card-title">📈 Scan Activity (7d)</div>
+        ${renderMiniChart(stats.scan_activity)}
+      </div>
+    </div>
+
+    <div class="card mt-4">
+      <div class="card-title flex items-center gap-2">
+        🔍 Recent Findings
+        <span class="ml-auto"><button class="btn btn-ghost btn-sm" onclick="navigate('findings')">View All →</button></span>
+      </div>
+      ${stats.recent_findings.length === 0
+        ? '<div class="empty" style="padding:20px;"><div class="empty-icon">🎉</div>No findings yet — add targets and run scans</div>'
+        : `<div class="table-wrap"><table>
+          <thead><tr><th>Finding</th><th>Target</th><th>Severity</th><th>Category</th><th>Found</th><th></th></tr></thead>
+          <tbody>${stats.recent_findings.map(f => `
+            <tr>
+              <td><div class="truncate">${escHtml(f.title)}</div></td>
+              <td><span class="mono" style="font-size:11px;">#${f.target_id}</span></td>
+              <td>${threatBadge(f.threat_level)}</td>
+              <td><span style="font-size:11px;color:var(--text2);">${f.category.replace('_',' ')}</span></td>
+              <td style="color:var(--muted);font-size:11px;">${timeAgo(f.first_seen_at)}</td>
+              <td><button class="btn btn-ghost btn-sm" onclick="showFinding(${f.id})">View</button></td>
+            </tr>`).join('')}</tbody>
+        </table></div>`}
+    </div>
+  `;
+}
+
+function renderMiniChart(activity) {
+  if (!activity.length) return '<div class="empty" style="padding:20px;">No scan data yet</div>';
+  const max = Math.max(...activity.map(a=>a.count), 1);
+  const bars = activity.map(a => {
+    const h = Math.max(Math.round((a.count/max)*80), 4);
+    return `<div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;">
+      <span style="font-size:10px;color:var(--muted);">${a.count}</span>
+      <div style="height:${h}px;background:var(--accent);border-radius:3px 3px 0 0;width:100%;opacity:.8;"></div>
+      <span style="font-size:9px;color:var(--muted);">${a.day.slice(5)}</span>
+    </div>`;
+  }).join('');
+  return `<div style="display:flex;align-items:flex-end;gap:6px;height:120px;">${bars}</div>`;
+}
+
+// ─── Targets ─────────────────────────────────────────────────────────────────
+async function renderTargets() {
+  const targets = await api('/targets');
+  const c = document.getElementById('content');
+
+  if (!targets.length) {
+    c.innerHTML = `<div class="card empty">
+      <div class="empty-icon">🎯</div>
+      <p>No targets configured yet.</p>
+      <p class="text-muted" style="margin-top:8px;">Add domains, emails, keywords, or .onion sites to monitor.</p>
+      <button class="btn btn-primary mt-4" onclick="openModal('modal-add-target')">+ Add First Target</button>
+    </div>`;
+    return;
+  }
+
+  c.innerHTML = `
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Name</th><th>Type</th><th>Value</th><th>Status</th>
+            <th>Risk</th><th>Findings</th><th>Last Scan</th><th>Actions</th>
+          </tr></thead>
+          <tbody id="targets-tbody">
+          ${targets.map(t => targetRow(t)).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+function targetRow(t) {
+  const status = t.is_active
+    ? `<span class="badge badge-active">Active</span>`
+    : `<span class="badge badge-paused">Paused</span>`;
+  const scanBtn = t.is_active
+    ? `<button class="btn btn-cyan btn-sm" onclick="triggerScan(${t.id})" id="scan-btn-${t.id}">⚡ Scan</button>`
+    : '';
+  return `<tr id="target-row-${t.id}">
+    <td><strong>${escHtml(t.name)}</strong>${t.tags?.length ? `<br><span style="font-size:10px;color:var(--muted);">${t.tags.join(', ')}</span>` : ''}</td>
+    <td>${typeBadge(t.target_type)}</td>
+    <td><span class="mono truncate" style="max-width:200px;">${escHtml(t.value)}</span></td>
+    <td>${status}</td>
+    <td>${riskBar(t.risk_score)}</td>
+    <td><span class="badge" style="background:rgba(0,212,255,.1);color:var(--accent2);border-color:rgba(0,212,255,.2);">${t.findings_count}</span></td>
+    <td style="color:var(--muted);font-size:11px;">${timeAgo(t.last_scanned_at)}</td>
+    <td>
+      <div class="flex gap-2">
+        ${scanBtn}
+        <button class="btn btn-ghost btn-sm" onclick="toggleTarget(${t.id}, ${t.is_active})">${t.is_active ? '⏸' : '▶'}</button>
+        <button class="btn btn-cyan btn-sm" onclick="showReport(${t.id}, '${escHtml(t.name)}')">📋</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteTarget(${t.id})">✕</button>
+      </div>
+    </td>
+  </tr>`;
+}
+
+async function submitAddTarget(e) {
+  e.preventDefault();
+  const btn = document.getElementById('btn-add-submit');
+  btn.innerHTML = '<span class="spinner"></span> Adding…';
+  btn.disabled = true;
+  try {
+    const tags = document.getElementById('t-tags').value
+      .split(',').map(s=>s.trim()).filter(Boolean);
+    const payload = {
+      name: document.getElementById('t-name').value,
+      target_type: document.getElementById('t-type').value,
+      value: document.getElementById('t-value').value,
+      description: document.getElementById('t-desc').value || null,
+      scan_interval_hours: parseInt(document.getElementById('t-interval').value) || 6,
+      tags,
+    };
+    await api('/targets', { method:'POST', body: JSON.stringify(payload) });
+    closeModal('modal-add-target');
+    e.target.reset();
+    toast('Target added successfully');
+    navigate('targets');
+  } catch(err) {
+    toast(err.message, 'error');
+  } finally {
+    btn.innerHTML = '<span>Add Target</span>';
+    btn.disabled = false;
+  }
+}
+
+async function toggleTarget(id, currentlyActive) {
+  try {
+    await api(`/targets/${id}/toggle`, { method: 'POST' });
+    toast(currentlyActive ? 'Target paused' : 'Target activated', 'success');
+    renderTargets();
+  } catch(err) { toast(err.message, 'error'); }
+}
+
+async function deleteTarget(id) {
+  if (!confirm('Delete this target and all its findings?')) return;
+  try {
+    await api(`/targets/${id}`, { method: 'DELETE' });
+    toast('Target deleted');
+    renderTargets();
+  } catch(err) { toast(err.message, 'error'); }
+}
+
+async function triggerScan(id) {
+  const btn = document.getElementById(`scan-btn-${id}`);
+  if (btn) { btn.innerHTML = '<span class="spinner"></span>'; btn.disabled = true; }
+  try {
+    await api(`/scans/trigger/${id}`, { method: 'POST' });
+    toast('Scan queued — results will appear shortly', 'info');
+    setTimeout(() => renderTargets(), 3000);
+  } catch(err) {
+    toast(err.message, 'error');
+    if (btn) { btn.innerHTML = '⚡ Scan'; btn.disabled = false; }
+  }
+}
+
+// ─── Findings ────────────────────────────────────────────────────────────────
+let findingsFilter = { threat_level: '', category: '', acknowledged: '' };
+
+async function renderFindings() {
+  const params = new URLSearchParams({ limit: 200, false_positive: false });
+  if (findingsFilter.threat_level) params.set('threat_level', findingsFilter.threat_level);
+  if (findingsFilter.category) params.set('category', findingsFilter.category);
+  if (findingsFilter.acknowledged !== '') params.set('acknowledged', findingsFilter.acknowledged);
+
+  const findings = await api(`/findings?${params}`);
+  const c = document.getElementById('content');
+
+  const filterBar = `
+    <div class="flex gap-2 mb-4" style="flex-wrap:wrap;">
+      <select onchange="findingsFilter.threat_level=this.value;renderFindings()" style="width:auto;padding:7px 12px;">
+        <option value="">All Severity</option>
+        ${['critical','high','medium','low','informational'].map(l =>
+          `<option value="${l}" ${findingsFilter.threat_level===l?'selected':''}>${l.toUpperCase()}</option>`
+        ).join('')}
+      </select>
+      <select onchange="findingsFilter.category=this.value;renderFindings()" style="width:auto;padding:7px 12px;">
+        <option value="">All Categories</option>
+        ${['credential_leak','data_breach','brand_mention','infrastructure_exposure','threat_actor','fraud','other'].map(cat =>
+          `<option value="${cat}" ${findingsFilter.category===cat?'selected':''}>${cat.replace(/_/g,' ')}</option>`
+        ).join('')}
+      </select>
+      <select onchange="findingsFilter.acknowledged=this.value;renderFindings()" style="width:auto;padding:7px 12px;">
+        <option value="">All Status</option>
+        <option value="false" ${findingsFilter.acknowledged==='false'?'selected':''}>Unacknowledged</option>
+        <option value="true" ${findingsFilter.acknowledged==='true'?'selected':''}>Acknowledged</option>
+      </select>
+      <span style="margin-left:auto;color:var(--text2);font-size:12px;padding:8px 0;">${findings.length} finding(s)</span>
+    </div>`;
+
+  if (!findings.length) {
+    c.innerHTML = filterBar + `<div class="card empty"><div class="empty-icon">🎉</div>No findings match the current filters.</div>`;
+    return;
+  }
+
+  c.innerHTML = filterBar + `
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Finding</th><th>Source</th><th>Severity</th><th>Category</th>
+            <th>Risk</th><th>Status</th><th>Found</th><th></th>
+          </tr></thead>
+          <tbody>
+          ${findings.map(f => `
+            <tr>
+              <td><div class="truncate" style="max-width:300px;">${escHtml(f.title)}</div></td>
+              <td><span class="mono" style="font-size:11px;color:var(--text2);">${escHtml(f.source_name||'—')}</span></td>
+              <td>${threatBadge(f.threat_level)}</td>
+              <td><span style="font-size:11px;color:var(--text2);">${f.category.replace(/_/g,' ')}</span></td>
+              <td>${riskBar(f.risk_score)}</td>
+              <td>
+                ${f.is_false_positive ? '<span class="badge" style="background:rgba(74,85,104,.2);color:var(--muted);">False Positive</span>'
+                  : f.is_acknowledged ? '<span class="badge badge-active">Reviewed</span>'
+                  : '<span class="badge badge-paused">Pending</span>'}
+              </td>
+              <td style="color:var(--muted);font-size:11px;">${timeAgo(f.first_seen_at)}</td>
+              <td>
+                <button class="btn btn-ghost btn-sm" onclick="showFinding(${f.id})">View</button>
+              </td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+async function showFinding(id) {
+  const f = await api(`/findings/${id}`);
+  const body = document.getElementById('modal-finding-body');
+  body.innerHTML = `
+    <div class="flex gap-2 mb-4" style="flex-wrap:wrap;align-items:center;">
+      ${threatBadge(f.threat_level)}
+      <span class="badge" style="background:rgba(108,99,255,.1);color:var(--accent);">${f.category.replace(/_/g,' ')}</span>
+      ${riskBar(f.risk_score)}
+    </div>
+    <h3 style="margin-bottom:12px;font-size:16px;">${escHtml(f.title)}</h3>
+    <p style="color:var(--text2);margin-bottom:16px;line-height:1.6;">${escHtml(f.summary)}</p>
+
+    ${f.source_url ? `<p style="margin-bottom:12px;font-size:12px;"><strong>Source:</strong> <span class="mono">${escHtml(f.source_name||'')} — ${escHtml(f.source_url)}</span></p>` : ''}
+
+    ${f.ai_analysis ? `
+      <div style="margin-bottom:16px;">
+        <div class="card-title">🤖 AI Analysis</div>
+        <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px;
+          font-size:13px;line-height:1.7;color:var(--text2);">${escHtml(f.ai_analysis)}</div>
+      </div>` : ''}
+
+    ${Object.keys(f.extracted_data||{}).some(k => f.extracted_data[k]?.length) ? `
+      <div style="margin-bottom:16px;">
+        <div class="card-title">🗃️ Extracted Indicators</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        ${Object.entries(f.extracted_data).filter(([,v])=>v?.length).map(([k,v]) => `
+          <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;">
+            <div style="font-size:10px;color:var(--muted);text-transform:uppercase;margin-bottom:6px;">${k}</div>
+            ${v.map(item => `<div class="mono" style="font-size:11px;color:var(--text);">${escHtml(String(item))}</div>`).join('')}
+          </div>`).join('')}
+        </div>
+      </div>` : ''}
+
+    <div class="flex gap-2" style="justify-content:space-between;margin-top:8px;">
+      <div class="flex gap-2">
+        <button class="btn btn-success btn-sm" onclick="acknowledgeFinding(${f.id}, true, false)">✓ Acknowledge</button>
+        <button class="btn btn-ghost btn-sm" onclick="acknowledgeFinding(${f.id}, true, true)">Mark False Positive</button>
+      </div>
+      <button class="btn btn-danger btn-sm" onclick="deleteFinding(${f.id})">Delete</button>
+    </div>
+  `;
+  openModal('modal-finding');
+}
+
+async function acknowledgeFinding(id, acked, fp) {
+  await api(`/findings/${id}/acknowledge`, { method:'PATCH', body: JSON.stringify({ is_acknowledged: acked, is_false_positive: fp }) });
+  toast(fp ? 'Marked as false positive' : 'Finding acknowledged', 'success');
+  closeModal('modal-finding');
+  if (currentPage === 'findings') renderFindings();
+}
+
+async function deleteFinding(id) {
+  if (!confirm('Delete this finding permanently?')) return;
+  await api(`/findings/${id}`, { method:'DELETE' });
+  toast('Finding deleted');
+  closeModal('modal-finding');
+  if (currentPage === 'findings') renderFindings();
+}
+
+// ─── Scans ───────────────────────────────────────────────────────────────────
+async function renderScans() {
+  const scans = await api('/scans?limit=100');
+  const c = document.getElementById('content');
+
+  if (!scans.length) {
+    c.innerHTML = `<div class="card empty"><div class="empty-icon">⚡</div>No scans yet. Go to Targets and trigger a scan.</div>`;
+    return;
+  }
+
+  c.innerHTML = `
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>ID</th><th>Target</th><th>Status</th><th>Trigger</th>
+            <th>Findings</th><th>Sources</th><th>Duration</th><th>Created</th>
+          </tr></thead>
+          <tbody>
+          ${scans.map(s => {
+            const dur = s.started_at && s.completed_at
+              ? ((new Date(s.completed_at)-new Date(s.started_at))/1000).toFixed(1)+'s'
+              : s.status === 'running' ? '<span class="scanning">Running…</span>' : '—';
+            const statusColor = { completed:'var(--green)', failed:'var(--red)', running:'var(--accent2)', pending:'var(--muted)' };
+            return `<tr>
+              <td class="mono">#${s.id}</td>
+              <td class="mono" style="font-size:11px;">#${s.target_id}</td>
+              <td><span style="color:${statusColor[s.status]||'inherit'};font-weight:600;font-size:12px;">●&nbsp;${s.status}</span></td>
+              <td style="font-size:11px;color:var(--text2);">${s.triggered_by}</td>
+              <td>${s.findings_count > 0 ? `<span class="badge badge-high">${s.findings_count}</span>` : `<span style="color:var(--muted);">0</span>`}</td>
+              <td style="font-size:11px;color:var(--text2);">${(s.sources_checked||[]).join(', ')||'—'}</td>
+              <td style="font-size:11px;color:var(--muted);">${dur}</td>
+              <td style="font-size:11px;color:var(--muted);">${timeAgo(s.created_at)}</td>
+            </tr>`;
+          }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+// ─── Report ──────────────────────────────────────────────────────────────────
+async function showReport(targetId, targetName) {
+  openModal('modal-report');
+  document.getElementById('modal-report-body').innerHTML = `
+    <p style="color:var(--text2);">Generating AI threat report for <strong>${escHtml(targetName)}</strong>…</p>
+    <div style="text-align:center;margin-top:24px;"><div class="spinner"></div></div>`;
+  try {
+    const data = await api(`/dashboard/report/${targetId}`);
+    document.getElementById('modal-report-body').innerHTML = `
+      <div class="report-content">${escHtml(data.report)}</div>
+      <div class="flex mt-4" style="justify-content:flex-end;">
+        <button class="btn btn-ghost btn-sm" onclick="navigator.clipboard.writeText(${JSON.stringify(data.report)});toast('Copied!')">📋 Copy</button>
+      </div>`;
+  } catch(err) {
+    document.getElementById('modal-report-body').innerHTML = `<p style="color:var(--red);">Report generation failed: ${escHtml(err.message)}</p>`;
+  }
+}
+
+// ─── Utility ─────────────────────────────────────────────────────────────────
+function escHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Close modals on overlay click
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) overlay.classList.remove('open');
+  });
+});
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+checkHealth();
+setInterval(checkHealth, 30000);
+navigate('dashboard');
+</script>
+</body>
+</html>
